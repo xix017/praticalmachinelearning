@@ -48,11 +48,13 @@ The code above first find out the number of missing values of each predictors. I
 
 
 ```r
-table(train2[,60])
+table(train2[,53])
 ```
 
 ```
-## Error: undefined columns selected
+## 
+##    A    B    C    D    E 
+## 5580 3797 3422 3216 3607
 ```
 
 The tables shows that the number of cases "A" is more than other 4, but not that much. Therefore, there is no need to do balance adjustment.
