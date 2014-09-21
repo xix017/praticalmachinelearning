@@ -1,0 +1,98 @@
+Practical Machine Learning Project
+=============================================
+
+-------------------------------------------
+
+##Background
+
+In this project, I will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+The training dataset has 19622 observations of 160 variables, while test dataset has 20 observations of 160 variables. 
+
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set.  
+
+```{r read the data,echo=TRUE}
+train = read.csv("pml-training.csv",header=TRUE)
+test = read.csv("pml-testing.csv",head=TRUE)
+```
+
+##Preprocessing
+
+#### 1.First we check the status of missing values of the dataset.
+
+```{r missingvalue,echo=TRUE,warning=FALSE}
+train2 = train[,8:160]
+mm = data.frame(index=rep(0,152), percent = rep(0,152))
+for(i in 1:152){
+  mm$index[i] = i
+  mm$percent[i] = ifelse((length(which(is.na(train2[,i])|train2[,i]==""))/nrow(train2)) >.1, 0, 1)
+}
+sub_mm = mm[which(mm$percent > 0 ),]
+nrow(sub_mm)
+train2 = train2[,c(sub_mm[,1],153)]
+test_new = test[,8:160][,c(sub_mm[,1])]
+```
+
+The code above first find out the number of missing values of each predictors. I first remove the first 7 columns unrelated for the analysis and then the ones with more than 10% percent of missing values as fixing these variables would cause great bias to the model. After removing the variables with too many(more than 10%) missing values, we now have 52 predictors without missing values left for the following analysis. 
+
+#### 2. Check the balance status of observations
+
+```{r balance,echo=TRUE}
+table(train2[,60])
+```
+
+The tables shows that the number of cases "A" is more than other 4, but not that much. Therefore, there is no need to do balance adjustment.
+
+
+##Modeling
+
+- In this part, we begin to build the classifier for further prediction. There are 2 models I used to build the classifier: CART and Random Forest. 
+
+- To aviod overfitting, I use cross validation in every model and set the fold as 4. Therefore , it is a 4-folds cross validation. And Finally we will select the one with lowest prediction error rates, which is also "out of sample error", to do the prediction.
+
+- Before modeling, I randomly set 80% cases in the training set to modeling and 20% left to test the model. By this, I can get the prediction error of the model.
+
+#### 1. CART
+
+```{r cart, echo=TRUE,message = FALSE,warning=FALSE}
+library(caret)
+library(rattle)
+
+set.seed(666)
+index = createDataPartition(train2$classe, p=0.2, list=FALSE)
+training = train2[index,]
+testing = train2[-index,]
+
+cart.fit = train(classe ~ .,  preProcess=c("center", "scale"), trControl=trainControl(method = "cv", number = 4), data = training, method="rpart")
+
+cart = cart.fit$finalModel
+fancyRpartPlot(cart)
+cart.fit$resample
+p = predict(cart.fit, newdata = testing)
+paste("prediction error = ",1-sum(diag(table(p,testing$classe)))/nrow(testing))
+```
+
+As we can see, the prediction error rate is a bit high in the model CART with Cross Validation. Then we use Random Forest.
+
+
+#### 2.Random Forest
+
+```{r randomforest,echo=TRUE,message=FALSE,warning=FALSE}
+rf.fit = train(classe ~ .,  preProcess=c("center", "scale"), trControl=trainControl(method = "cv", number = 4), data = training, method="rf")
+rf.fit$finalModel
+p = predict(rf.fit, newdata = testing)
+paste("prediction error = ",1-sum(diag(table(p,testing$classe)))/nrow(testing))
+```
+
+As we can see, Random Forest does perfect in this case with very low prediction error. 
+
+Thus I will use Random ForesT to do the prediction.
+
+
+## Predction
+
+```{r predict,echo=TRUE}
+p = predict(rf.fit, newdata = test_new)
+p
+```
+
